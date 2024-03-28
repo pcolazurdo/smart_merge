@@ -9,7 +9,8 @@
 * create a class for session_id so we can keep track of all the sessions_id generated
 * improve stats output - in particular, manage messages depending on flags
 * add pause, and control+interrupts control
+* think about alternative to session-id for renaming files ... woud be nice not to copy again if file exists even if user has decided not to use delete source
 * create different output files depending on configuration:
     * script option
-    * new file names opion
+    * new file names option
     * stats output
