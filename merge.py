@@ -127,9 +127,9 @@ def file_issame(source_file, destination_file):
 @handle_exception
 def calc_size(file_name):
     assert "Path" in str(type(file_name))
-    size = file_name.stat().st_size
+    size = file_name.stat()
     if size:
-        return size
+        return size.st_size
     else: # There was an exception
         return 0
 
