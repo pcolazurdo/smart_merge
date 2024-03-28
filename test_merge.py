@@ -7,7 +7,25 @@ from typing import Any
 from config import MergeConfig
 import merge
 
-DEBUG = True
+DEBUG = True # if true, tempdirectories aren't cleaned up for further investigation.
+
+FILE_NAMES_LIST = [
+        'file1', 
+        'file2.txt', 
+        'file3.tar.gz', 
+        'file space.txt', 
+        'file space. txt', 
+        'file space. .txt', 
+        'file7.txt.txt', 
+        '.-file8.txt', 
+        '~file9.txt'
+    ]
+
+FILE_SIZES_LIST = [0, 1, 2, 3, 4]
+SOURCE_DIRECTORIES = 7
+NON_EMPTY_DIRECTORIES = 5
+DIRECTORIES_CONTAINING_FILES = 4
+EXPECTED_FILES = len(FILE_NAMES_LIST) * DIRECTORIES_CONTAINING_FILES
 
 def hash(string_to_hash):
     if len(string_to_hash) > 0:
@@ -25,7 +43,7 @@ def cleanup_directory(temp_directory):
     temp_directory.cleanup()
 
 def get_file_size(cycle=True):
-    file_sizes = [0, 1, 2, 3, 4]
+    file_sizes = FILE_SIZES_LIST
     count = 0
     while cycle:
         count = count +1 if count < len(file_sizes)-1 else 0
@@ -33,17 +51,7 @@ def get_file_size(cycle=True):
 
 def create_source_files(target_directory, immutable_path_length=0):
     hash_table = {}
-    file_names = [
-        'file1', 
-        'file2.txt', 
-        'file3.tar.gz', 
-        'file space.txt', 
-        'file space. txt', 
-        'file space. .txt', 
-        'file7.txt.txt', 
-        '.-file8.txt', 
-        '~file9.txt'
-    ]
+    file_names = FILE_NAMES_LIST
     file_size = get_file_size(cycle=True)
     for file in file_names:
         path = target_directory / file
@@ -102,7 +110,6 @@ def create_source_directories(temp_directory):
     dirempty2_path.mkdir()
 
     hash_table = hash_table | create_source_files(dir1_path, immutable_path_length=temp_directory_path_depth)
-    # hash_table = hash_table | create_source_files(dir2_path)
     hash_table = hash_table | create_source_files(dir3_path, immutable_path_length=temp_directory_path_depth)
     hash_table = hash_table | create_source_files(dir4_path, immutable_path_length=temp_directory_path_depth)
     hash_table = hash_table | create_source_files(dir5_path, immutable_path_length=temp_directory_path_depth)
@@ -176,18 +183,18 @@ def test_merge_copy_no_delete_empty_target(create_src_empty_dst: dict[str, Any])
     merge.clean_up(data['src'])
 
     dir_count_src, file_count_src = analyze_structure(data['src'], data['ht'])
-    assert dir_count_src == 7, 'the stats are miscounting the number of operations'
-    assert file_count_src == 36, 'the stats are miscounting the number of operations'
+    assert dir_count_src == SOURCE_DIRECTORIES, 'the stats are miscounting the number of operations'
+    assert file_count_src == EXPECTED_FILES, 'the stats are miscounting the number of operations'
     
     dir_count_dst, file_count_dst = analyze_structure(data['dst'], data['ht'])
 
-    assert dir_count_dst == 5, 'the stats are miscounting the number of operations'
-    assert file_count_dst == 36, 'the stats are miscounting the number of operations'
+    assert dir_count_dst == NON_EMPTY_DIRECTORIES, 'the stats are miscounting the number of operations'
+    assert file_count_dst == EXPECTED_FILES, 'the stats are miscounting the number of operations'
 
     stats = merge.get_stats()
-    assert stats.processed_files_count == 36, 'the stats are miscounting the number of operations'
-    assert stats.copied_files_count == 36, 'the stats are miscounting the number of operations'
-    assert stats.deleted_files_count == 36, 'the stats are miscounting the number of operations'
+    assert stats.processed_files_count == EXPECTED_FILES, 'the stats are miscounting the number of operations'
+    assert stats.copied_files_count == EXPECTED_FILES, 'the stats are miscounting the number of operations'
+    assert stats.deleted_files_count == EXPECTED_FILES, 'the stats are miscounting the number of operations'
     assert stats.ignored_files_count == 0, 'the stats are miscounting the number of operations'
     assert stats.duplicated_files_count == 0, 'the stats are miscounting the number of operations'
 
@@ -211,19 +218,19 @@ def test_merge_twice_no_delete_empty_target(create_src_empty_dst: dict[str, Any]
     merge.clean_up(data['src'])
 
     dir_count_src, file_count_src = analyze_structure(data['src'], data['ht'])
-    assert dir_count_src == 7
-    assert file_count_src == 36
+    assert dir_count_src == SOURCE_DIRECTORIES
+    assert file_count_src == EXPECTED_FILES
     
     dir_count_dst, file_count_dst = analyze_structure(data['dst'], data['ht'])
 
-    assert dir_count_dst == 5
-    assert file_count_dst == 36
+    assert dir_count_dst == NON_EMPTY_DIRECTORIES
+    assert file_count_dst == EXPECTED_FILES
 
     stats = merge.get_stats()
-    assert stats.processed_files_count == 72, 'the stats are miscounting the number of operations - in this case, the stats should be accumulative for each run'
-    assert stats.copied_files_count == 36, 'the stats are miscounting the number of operations - in this case, the stats should be accumulative for each run'
-    assert stats.deleted_files_count == 72, 'the stats are miscounting the number of operations - in this case, the stats should be accumulative for each run'
-    assert stats.ignored_files_count == 36, 'the stats are miscounting the number of operations - in this case, the stats should be accumulative for each run'
+    assert stats.processed_files_count == EXPECTED_FILES * 2, 'the stats are miscounting the number of operations - in this case, the stats should be accumulative for each run'
+    assert stats.copied_files_count == EXPECTED_FILES, 'the stats are miscounting the number of operations - in this case, the stats should be accumulative for each run'
+    assert stats.deleted_files_count == EXPECTED_FILES * 2, 'the stats are miscounting the number of operations - in this case, the stats should be accumulative for each run'
+    assert stats.ignored_files_count == EXPECTED_FILES, 'the stats are miscounting the number of operations - in this case, the stats should be accumulative for each run'
     assert stats.duplicated_files_count == 0, 'the stats are miscounting the number of operations - in this case, the stats should be accumulative for each run'
     
 
@@ -248,13 +255,13 @@ def test_merge_copy_delete_empty_target(create_src_empty_dst: dict[str, Any]):
     assert file_count_src == 0, f'{data['src']} there should not be any files left but there are some - check folder'
     
     dir_count_dst, file_count_dst = analyze_structure(data['dst'], data['ht'])
-    assert dir_count_dst == 5, f'{data['dst']} there should be 5 folders from the 7 configured (as the tool does not copy empty folders) - check folder'
-    assert file_count_dst == 36, f'{data['dst']} there should be 36 files (4*9) - check folder'
+    assert dir_count_dst == NON_EMPTY_DIRECTORIES, f'{data['dst']} there should be 5 folders from the 7 configured (as the tool does not copy empty folders) - check folder'
+    assert file_count_dst == EXPECTED_FILES, f'{data['dst']} there should be 36 files (4*9) - check folder'
 
     stats = merge.get_stats()
-    assert stats.processed_files_count == 36, 'the stats are miscounting the number of operations'
-    assert stats.copied_files_count == 36, 'the stats are miscounting the number of operations'
-    assert stats.deleted_files_count == 36, 'the stats are miscounting the number of operations'
+    assert stats.processed_files_count == EXPECTED_FILES, 'the stats are miscounting the number of operations'
+    assert stats.copied_files_count == EXPECTED_FILES, 'the stats are miscounting the number of operations'
+    assert stats.deleted_files_count == EXPECTED_FILES, 'the stats are miscounting the number of operations'
     assert stats.ignored_files_count == 0, 'the stats are miscounting the number of operations'
     assert stats.duplicated_files_count == 0, 'the stats are miscounting the number of operations'
 
