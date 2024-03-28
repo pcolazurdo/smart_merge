@@ -156,8 +156,8 @@ def analyze_structure(directory_to_compare, hash_table):
 
 def test_merge_copy(create_src_empty_dst: dict[str, Any]):
     data = create_src_empty_dst
-    assert len(data['ht']) == 36
-    assert data['src'] != data['dst'] 
+    assert len(data['ht']) == 36, f'there should be 36 hashes from the source directory'
+    assert data['src'] != data['dst'], f'src and dst folders should be different'
     
 def test_merge_copy_no_delete_empty_target(create_src_empty_dst: dict[str, Any]):
     data = create_src_empty_dst
@@ -176,20 +176,20 @@ def test_merge_copy_no_delete_empty_target(create_src_empty_dst: dict[str, Any])
     merge.clean_up(data['src'])
 
     dir_count_src, file_count_src = analyze_structure(data['src'], data['ht'])
-    assert dir_count_src == 7
-    assert file_count_src == 36
+    assert dir_count_src == 7, 'the stats are miscounting the number of operations'
+    assert file_count_src == 36, 'the stats are miscounting the number of operations'
     
     dir_count_dst, file_count_dst = analyze_structure(data['dst'], data['ht'])
 
-    assert dir_count_dst == 5
-    assert file_count_dst == 36
+    assert dir_count_dst == 5, 'the stats are miscounting the number of operations'
+    assert file_count_dst == 36, 'the stats are miscounting the number of operations'
 
     stats = merge.get_stats()
-    assert stats.processed_files_count == 36
-    assert stats.copied_files_count == 36
-    assert stats.deleted_files_count == 36
-    assert stats.ignored_files_count == 0
-    assert stats.duplicated_files_count == 0
+    assert stats.processed_files_count == 36, 'the stats are miscounting the number of operations'
+    assert stats.copied_files_count == 36, 'the stats are miscounting the number of operations'
+    assert stats.deleted_files_count == 36, 'the stats are miscounting the number of operations'
+    assert stats.ignored_files_count == 0, 'the stats are miscounting the number of operations'
+    assert stats.duplicated_files_count == 0, 'the stats are miscounting the number of operations'
 
 def test_merge_twice_no_delete_empty_target(create_src_empty_dst: dict[str, Any]):
     data = create_src_empty_dst
@@ -220,11 +220,11 @@ def test_merge_twice_no_delete_empty_target(create_src_empty_dst: dict[str, Any]
     assert file_count_dst == 36
 
     stats = merge.get_stats()
-    assert stats.processed_files_count == 72
-    assert stats.copied_files_count == 36
-    assert stats.deleted_files_count == 72
-    assert stats.ignored_files_count == 36
-    assert stats.duplicated_files_count == 0
+    assert stats.processed_files_count == 72, 'the stats are miscounting the number of operations - in this case, the stats should be accumulative for each run'
+    assert stats.copied_files_count == 36, 'the stats are miscounting the number of operations - in this case, the stats should be accumulative for each run'
+    assert stats.deleted_files_count == 72, 'the stats are miscounting the number of operations - in this case, the stats should be accumulative for each run'
+    assert stats.ignored_files_count == 36, 'the stats are miscounting the number of operations - in this case, the stats should be accumulative for each run'
+    assert stats.duplicated_files_count == 0, 'the stats are miscounting the number of operations - in this case, the stats should be accumulative for each run'
     
 
 def test_merge_copy_delete_empty_target(create_src_empty_dst: dict[str, Any]):
@@ -244,21 +244,19 @@ def test_merge_copy_delete_empty_target(create_src_empty_dst: dict[str, Any]):
     merge.clean_up(data['src'])
 
     dir_count_src, file_count_src = analyze_structure(data['src'], {})
-    assert dir_count_src == 0, f'{data['src']} should be empty and is not'
-    assert file_count_src == 0
+    assert dir_count_src == 0, f'{data['src']} there should not be any directories left but there are some - check folder'
+    assert file_count_src == 0, f'{data['src']} there should not be any files left but there are some - check folder'
     
-
     dir_count_dst, file_count_dst = analyze_structure(data['dst'], data['ht'])
-
-    assert dir_count_dst == 5
-    assert file_count_dst == 36
+    assert dir_count_dst == 5, f'{data['dst']} there should be 5 folders from the 7 configured (as the tool does not copy empty folders) - check folder'
+    assert file_count_dst == 36, f'{data['dst']} there should be 36 files (4*9) - check folder'
 
     stats = merge.get_stats()
-    assert stats.processed_files_count == 36
-    assert stats.copied_files_count == 36
-    assert stats.deleted_files_count == 36
-    assert stats.ignored_files_count == 0
-    assert stats.duplicated_files_count == 0
+    assert stats.processed_files_count == 36, 'the stats are miscounting the number of operations'
+    assert stats.copied_files_count == 36, 'the stats are miscounting the number of operations'
+    assert stats.deleted_files_count == 36, 'the stats are miscounting the number of operations'
+    assert stats.ignored_files_count == 0, 'the stats are miscounting the number of operations'
+    assert stats.duplicated_files_count == 0, 'the stats are miscounting the number of operations'
 
 
 # def test_merge_copy_no_delete_empty_dir(create_structure: dict[str, Any]):

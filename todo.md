@@ -15,3 +15,4 @@
     * new file names option
     * stats output
 * test cases / add things like "Presentación HDI Seguros 0.1 Overview de Solcuión Porpuesta 28102013.ppt"
+* rethink how to count files when do_\* is disabled
