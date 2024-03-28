@@ -9,6 +9,7 @@ import sys
 from functools import wraps
 from stats import ProcessStats
 import argparse
+from config import MergeConfig
 
 # DO_DELETE = False
 # DO_COPY = True
@@ -25,10 +26,18 @@ except ImportError as e:
     from utils import alive_bar
 
 stats = ProcessStats()
+config = MergeConfig()
 
+def reset_stats():
+    global stats
+    stats = ProcessStats()
+
+def set_config(new_config: MergeConfig):
+    global config
+    config = new_config
 
 def print_or_quiet(*args, **kwargs):
-    if not DO_QUIET:
+    if not config.DO_QUIET:
         print(*args, **kwargs)
 
 
@@ -45,11 +54,15 @@ def handle_exception(func):
             return func(*args, **kwargs)
         except FileNotFoundError as e:
             if "[Errno 2]" in str(e) and "._" in str(e):
-                if IGNORE_DOT_UNDERSCORE_FILES:
+                if config.IGNORE_DOT_UNDERSCORE_FILES:
                     print_or_quiet(
                         f"ignoring FileNotFoundError exception produced by a ._* file: {e}"
                     )
                     return None
+            if config.LOG_FILE_NOT_FOUND_ERRORS:
+                with open(config.FILE_NOT_FOUND_ERRORS_LOG, "a") as f:
+                    f.write(f'{e}\n')
+                return None
             raise e
         except Exception as e:
             raise e
@@ -59,7 +72,7 @@ def handle_exception(func):
 
 @handle_exception
 def delete_file(file_name):
-    if DO_DELETE:
+    if config.DO_DELETE:
         # print_or_quiet(f'Would delete {file_name}')
         # try:
         file_name.unlink()
@@ -73,7 +86,7 @@ def delete_file(file_name):
 @handle_exception
 def copy_file(source_file, destination_file):
     create_directory(destination_file.parent)
-    if DO_COPY:
+    if config.DO_COPY:
         # print_or_quiet(f'Would copy {source_file} -> {destination_file}')
         # try:
         return copy2(source_file, destination_file)
@@ -89,7 +102,7 @@ def copy_file(source_file, destination_file):
 def create_directory(directory_path_name):
     assert "Path" in str(type(directory_path_name))
     if not directory_path_name.is_dir():
-        if DO_MKDIR:
+        if config.DO_MKDIR:
             # print_or_quiet(f"Would create Directory: {directory_path_name}")
             # try:
             directory_path_name.mkdir(parents=True, exist_ok=True)
@@ -103,12 +116,22 @@ def create_directory(directory_path_name):
 def file_issame(source_file, destination_file):
     assert "Path" in str(type(source_file))
     assert "Path" in str(type(destination_file))
-    return cmp(source_file, destination_file, shallow=False)
+    if config.DO_NOT_COMPARE:
+        result = True
+    else:
+        result = cmp(source_file, destination_file, shallow=config.DO_SHALLOW)
+        if result == None: # There was an exception
+            result = False
+    return result
 
-
+@handle_exception
 def calc_size(file_name):
     assert "Path" in str(type(file_name))
-    return file_name.stat().st_size
+    size = file_name.stat().st_size
+    if size:
+        return size
+    else: # There was an exception
+        return 0
 
 
 @handle_exception
@@ -118,7 +141,7 @@ def clean_up(source_dir):
     for root, dirs, files in s.walk(top_down=False, on_error=walk_error):
         for d in dirs:
             t = s / root / d
-            if DO_CLEANUP_SOURCE:
+            if config.DO_CLEANUP_SOURCE:
                 t.rmdir()
             else:
                 print_or_quiet(f'rm -r "{t}"')
@@ -171,7 +194,7 @@ def merge_file(source_file, destination_file):
         else:
             stats.copied(source_size)
     delete_file(source_file)
-    stats.deleted(source_size)
+    stats.deleted(source_size) # TODO: stats.deleted should be inside the delete command
 
 
 def walk_error(e):
@@ -196,6 +219,8 @@ def tree_walk(source_dir, destination_dir):
             #     print_or_quiet(f"{root}::{s}/{directory}")
             #     tree_walk(s / directory, t / directory)
 
+def get_stats():
+    return stats
 
 def run(args):
     source = args.source
@@ -212,21 +237,21 @@ def run(args):
     print(f"Source: {source} - files will be deleted from this directory after copied")
     print(f"Destination: {destination}")
     print("We will execute with the following options:")
-    print(f"Run quietly: {DO_QUIET}")
-    print(f"Copy source files to destination: {DO_COPY}")
-    print(f"Create subdirectories in target if they don't exist: {DO_MKDIR}")
-    print(f"Delete source files after processing: {DO_DELETE}")
-    print(f"Delete subdirectories on source after processing: {DO_CLEANUP_SOURCE}")
+    print(f"Run quietly: {config.DO_QUIET}")
+    print(f"Copy source files to destination: {config.DO_COPY}")
+    print(f"Create subdirectories in target if they don't exist: {config.DO_MKDIR}")
+    print(f"Delete source files after processing: {config.DO_DELETE}")
+    print(f"Delete subdirectories on source after processing: {config.DO_CLEANUP_SOURCE}")
 
-    print(f"Show Stats: {DO_STATS}")
+    print(f"Show Stats: {config.DO_STATS}")
 
     print(
-        f"We will wait {SECURITY_TIMEOUT} seconds before continuining for safety reasons"
+        f"We will wait {config.SECURITY_TIMEOUT} seconds before continuining for safety reasons"
     )
 
-    with alive_bar(total=SECURITY_TIMEOUT) as bar:
+    with alive_bar(total=config.SECURITY_TIMEOUT) as bar:
         i = 0
-        while i < SECURITY_TIMEOUT:
+        while i < config.SECURITY_TIMEOUT:
             bar()
             sleep(1)
             i += 1
@@ -239,7 +264,7 @@ def run(args):
     print(f"""Session Id (in case you want to file new files was): {session_id}. For example you can do
           fd \"\\-{session_id}\" {destination}""")
 
-    if DO_STATS:
+    if config.DO_STATS:
         stats.print_stats()
 
 
@@ -264,15 +289,18 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     print(args.source, args.destination, args)
-    DO_DELETE = args.DO_DELETE
-    DO_COPY = args.DO_COPY
-    DO_MKDIR = True
-    DO_CLEANUP_SOURCE = True & DO_DELETE
-    IGNORE_DOT_UNDERSCORE_FILES = args.IGNORE_DOT_UNDERSCORE_FILES
-    DO_QUIET = args.DO_QUIET
-    DO_STATS = args.DO_STATS
-    SECURITY_TIMEOUT = max(5, args.SECURITY_TIMEOUT)  # in seconds
-
     session_id = generation_session_id()
+    config.DO_DELETE = args.DO_DELETE
+    config.DO_COPY = args.DO_COPY
+    config.DO_MKDIR = True
+    config.DO_CLEANUP_SOURCE = True & config.DO_DELETE 
+    config.IGNORE_DOT_UNDERSCORE_FILES = args.IGNORE_DOT_UNDERSCORE_FILES
+    config.DO_QUIET = args.DO_QUIET
+    config.DO_STATS = args.DO_STATS
+    config.SECURITY_TIMEOUT = max(5, args.SECURITY_TIMEOUT)  # in seconds
+    config.DO_SHALLOW = True
+    config.DO_NOT_COMPARE = True
+    config.LOG_FILE_NOT_FOUND_ERRORS = True
+    config.FILE_NOT_FOUND_ERRORS_LOG = f'{os.getcwd()}/file_not_found-{session_id}.log' 
 
     run(args)
