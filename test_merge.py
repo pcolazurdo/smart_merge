@@ -182,15 +182,17 @@ def test_merge_copy_no_delete_empty_target(create_src_empty_dst: dict[str, Any])
     merge.tree_walk(data['src'], data['dst'])
     merge.clean_up(data['src'])
 
+    # check that source is untouched
     dir_count_src, file_count_src = analyze_structure(data['src'], data['ht'])
     assert dir_count_src == SOURCE_DIRECTORIES, 'the stats are miscounting the number of operations'
     assert file_count_src == EXPECTED_FILES, 'the stats are miscounting the number of operations'
     
+    # check that destination has the right copies of the files
     dir_count_dst, file_count_dst = analyze_structure(data['dst'], data['ht'])
-
     assert dir_count_dst == NON_EMPTY_DIRECTORIES, 'the stats are miscounting the number of operations'
     assert file_count_dst == EXPECTED_FILES, 'the stats are miscounting the number of operations'
 
+    # check that stats are correct
     stats = merge.get_stats()
     assert stats.processed_files_count == EXPECTED_FILES, 'the stats are miscounting the number of operations'
     assert stats.copied_files_count == EXPECTED_FILES, 'the stats are miscounting the number of operations'
@@ -209,29 +211,48 @@ def test_merge_twice_no_delete_empty_target(create_src_empty_dst: dict[str, Any]
     config.DO_QUIET = True
     config.DO_STATS = False
     merge.set_config(config)
-    merge.reset_stats()
     
+    merge.reset_stats()
     merge.tree_walk(data['src'], data['dst'])
     merge.clean_up(data['src'])
 
+    # check that source is untouched the first time
+    dir_count_src, file_count_src = analyze_structure(data['src'], data['ht'])
+    assert dir_count_src == SOURCE_DIRECTORIES
+    assert file_count_src == EXPECTED_FILES
+
+    # check that destination has all the files the first time
+    dir_count_src, file_count_src = analyze_structure(data['src'], data['ht'])
+    assert dir_count_src == SOURCE_DIRECTORIES
+    assert file_count_src == EXPECTED_FILES
+
+    stats = merge.get_stats()
+    assert stats.processed_files_count == EXPECTED_FILES, 'the stats are miscounting the number of operations'
+    assert stats.copied_files_count == EXPECTED_FILES, 'the stats are miscounting the number of operations'
+    assert stats.deleted_files_count == EXPECTED_FILES, 'the stats are miscounting the number of operations'
+    assert stats.ignored_files_count == 0, 'the stats are miscounting the number of operations'
+    assert stats.duplicated_files_count == 0, 'the stats are miscounting the number of operations'
+
+    merge.reset_stats()
     merge.tree_walk(data['src'], data['dst'])
     merge.clean_up(data['src'])
 
+    # check that source is untouched the first time
     dir_count_src, file_count_src = analyze_structure(data['src'], data['ht'])
     assert dir_count_src == SOURCE_DIRECTORIES
     assert file_count_src == EXPECTED_FILES
     
+    # check that destination has all files untouched but that there wasn't any new copy
     dir_count_dst, file_count_dst = analyze_structure(data['dst'], data['ht'])
-
     assert dir_count_dst == NON_EMPTY_DIRECTORIES
     assert file_count_dst == EXPECTED_FILES
 
     stats = merge.get_stats()
-    assert stats.processed_files_count == EXPECTED_FILES * 2, 'the stats are miscounting the number of operations - in this case, the stats should be accumulative for each run'
-    assert stats.copied_files_count == EXPECTED_FILES, 'the stats are miscounting the number of operations - in this case, the stats should be accumulative for each run'
-    assert stats.deleted_files_count == EXPECTED_FILES * 2, 'the stats are miscounting the number of operations - in this case, the stats should be accumulative for each run'
-    assert stats.ignored_files_count == EXPECTED_FILES, 'the stats are miscounting the number of operations - in this case, the stats should be accumulative for each run'
-    assert stats.duplicated_files_count == 0, 'the stats are miscounting the number of operations - in this case, the stats should be accumulative for each run'
+    assert stats.processed_files_count == EXPECTED_FILES, 'the stats are miscounting the number of operations'
+    assert stats.copied_files_count == 0, 'the stats are miscounting the number of operations'
+    assert stats.deleted_files_count == EXPECTED_FILES, 'the stats are miscounting the number of operations'
+    assert stats.ignored_files_count == EXPECTED_FILES, 'the stats are miscounting the number of operations'
+    assert stats.duplicated_files_count == 0, 'the stats are miscounting the number of operations'
     
 
 def test_merge_copy_delete_empty_target(create_src_empty_dst: dict[str, Any]):
