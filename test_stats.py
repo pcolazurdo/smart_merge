@@ -1,5 +1,6 @@
 from stats import ProcessStats
 
+
 def test_create():
     stats = ProcessStats()
     assert stats.processed_files_count == 0

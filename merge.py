@@ -1,24 +1,16 @@
+import argparse
 import os
-from pathlib import Path
+import sys
+import traceback
 import uuid
-from functools import cache
 from filecmp import cmp
+from functools import cache, wraps
+from pathlib import Path
 from shutil import copy2
 from time import sleep
-import sys
-from functools import wraps
-from stats import ProcessStats
-import argparse
-from config import MergeConfig
 
-# DO_DELETE = False
-# DO_COPY = True
-# DO_MKDIR = True
-# DO_CLEANUP_SOURCE = True & DO_DELETE
-# IGNORE_DOT_UNDERSCORE_FILES = True
-# DO_QUIET = True
-# DO_STATS = True
-# SECURITY_TIMEOUT = 30 # in seconds
+from config import MergeConfig
+from stats import ProcessStats
 
 try:
     from alive_progress import alive_bar
@@ -28,13 +20,16 @@ except ImportError as e:
 stats = ProcessStats()
 config = MergeConfig()
 
+
 def reset_stats():
     global stats
     stats = ProcessStats()
 
+
 def set_config(new_config: MergeConfig):
     global config
     config = new_config
+
 
 def print_or_quiet(*args, **kwargs):
     if not config.DO_QUIET:
@@ -47,25 +42,31 @@ def generation_session_id():
     return sid
 
 
+def audit_exceptions(e):
+    with open(config.AUDIT_LOG_FILE, "a") as f:
+        f.write(f"{e}\n")
+
+
 def handle_exception(func):
     @wraps(func)
     def handle_exception_inner(*args, **kwargs):
         try:
             return func(*args, **kwargs)
         except FileNotFoundError as e:
-            if "[Errno 2]" in str(e) and "._" in str(e):
+            if "._" in str(e):
                 if config.IGNORE_DOT_UNDERSCORE_FILES:
                     print_or_quiet(
                         f"ignoring FileNotFoundError exception produced by a ._* file: {e}"
                     )
-                    return None
             if config.LOG_FILE_NOT_FOUND_ERRORS:
-                with open(config.FILE_NOT_FOUND_ERRORS_LOG, "a") as f:
-                    f.write(f'{e}\n')
-                return None
-            raise e
+                audit_exceptions(e)
+            return None
         except Exception as e:
-            raise e
+            if config.DO_SUPRESS_UNKNOWN_EXCEPTIONS:
+                audit_exceptions(traceback.format_exc())
+                pass
+            else:
+                raise e
 
     return handle_exception_inner
 
@@ -120,17 +121,19 @@ def file_issame(source_file, destination_file):
         result = True
     else:
         result = cmp(source_file, destination_file, shallow=config.DO_SHALLOW)
-        if result == None: # There was an exception
+        if result == None:  # There was an exception
             result = False
     return result
+
 
 @handle_exception
 def calc_size(file_name):
     assert "Path" in str(type(file_name))
-    size = file_name.stat()
-    if size:
-        return size.st_size
-    else: # There was an exception
+    if (
+        file_name.is_file()
+    ):  # this is an extra fs call but due to handling exception it is better to do this, except performance is critical
+        return file_name.stat().st_size
+    else:
         return 0
 
 
@@ -194,7 +197,9 @@ def merge_file(source_file, destination_file):
         else:
             stats.copied(source_size)
     delete_file(source_file)
-    stats.deleted(source_size) # TODO: stats.deleted should be inside the delete command
+    stats.deleted(
+        source_size
+    )  # TODO: stats.deleted should be inside the delete command
 
 
 def walk_error(e):
@@ -210,17 +215,14 @@ def tree_walk(source_dir, destination_dir):
     with alive_bar() as bar:
         for root, dirs, files in s.walk(top_down=True, on_error=walk_error):
             for f in files:
-                # print_or_quiet(root.parts[source_depth:], "::", f)
-                # print_or_quiet(t.joinpath(*root.parts[source_depth:]), "::", f)
                 target_dir = t.joinpath(*root.parts[source_depth:])
                 merge_file(root / f, target_dir / f)
                 bar()
-            # for directory in dirs:
-            #     print_or_quiet(f"{root}::{s}/{directory}")
-            #     tree_walk(s / directory, t / directory)
+
 
 def get_stats():
     return stats
+
 
 def run(args):
     source = args.source
@@ -241,7 +243,9 @@ def run(args):
     print(f"Copy source files to destination: {config.DO_COPY}")
     print(f"Create subdirectories in target if they don't exist: {config.DO_MKDIR}")
     print(f"Delete source files after processing: {config.DO_DELETE}")
-    print(f"Delete subdirectories on source after processing: {config.DO_CLEANUP_SOURCE}")
+    print(
+        f"Delete subdirectories on source after processing: {config.DO_CLEANUP_SOURCE}"
+    )
 
     print(f"Show Stats: {config.DO_STATS}")
 
@@ -260,9 +264,11 @@ def run(args):
 
     tree_walk(source, destination)
     clean_up(source)
-    
-    print(f"""Session Id (in case you want to file new files was): {session_id}. For example you can do
-          fd \"\\-{session_id}\" {destination}""")
+
+    print(
+        f"""Session Id (in case you want to file new files was): {session_id}. For example you can do
+          fd \"\\-{session_id}\" {destination}"""
+    )
 
     if config.DO_STATS:
         stats.print_stats()
@@ -293,7 +299,7 @@ if __name__ == "__main__":
     config.DO_DELETE = args.DO_DELETE
     config.DO_COPY = args.DO_COPY
     config.DO_MKDIR = True
-    config.DO_CLEANUP_SOURCE = True & config.DO_DELETE 
+    config.DO_CLEANUP_SOURCE = True & config.DO_DELETE
     config.IGNORE_DOT_UNDERSCORE_FILES = args.IGNORE_DOT_UNDERSCORE_FILES
     config.DO_QUIET = args.DO_QUIET
     config.DO_STATS = args.DO_STATS
@@ -301,6 +307,7 @@ if __name__ == "__main__":
     config.DO_SHALLOW = True
     config.DO_NOT_COMPARE = True
     config.LOG_FILE_NOT_FOUND_ERRORS = True
-    config.FILE_NOT_FOUND_ERRORS_LOG = f'{os.getcwd()}/file_not_found-{session_id}.log' 
+    config.AUDIT_LOG_FILE = f"{os.getcwd()}/AUDIT_LOG_FILE-{session_id}.log"
+    config.DO_SUPRESS_UNKNOWN_EXCEPTIONS = True
 
     run(args)

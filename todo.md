@@ -16,3 +16,7 @@
     * stats output
 * test cases / add things like "Presentación HDI Seguros 0.1 Overview de Solcuión Porpuesta 28102013.ppt"
 * rethink how to count files when do_\* is disabled
+* move merge operations to its own class and file and leave the cli parsing only on the main file
+* add exclusion files
+* add timing
+* add continuous, pause, interrupt, continue option

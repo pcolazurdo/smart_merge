@@ -1,5 +1,6 @@
-from dataclasses import dataclass
 import os
+from dataclasses import dataclass
+
 
 class MergeConfig():
     DO_DELETE: bool
@@ -13,7 +14,8 @@ class MergeConfig():
     DO_SHALLOW: bool
     DO_NOT_COMPARE: bool
     LOG_FILE_NOT_FOUND_ERRORS: bool
-    FILE_NOT_FOUND_ERRORS_LOG: str
+    AUDIT_LOG_FILE: str
+    DO_SUPRESS_UNKNOWN_EXCEPTIONS: bool
     
     # init with safe values
     def __init__(self):
@@ -28,4 +30,5 @@ class MergeConfig():
         self.DO_SHALLOW = False
         self.DO_NOT_COMPARE = False
         self.LOG_FILE_NOT_FOUND_ERRORS = False
-        self.FILE_NOT_FOUND_ERRORS_LOG= f'{os.getcwd()}/file_not_found.log' 
+        self.AUDIT_LOG_FILE= f'{os.getcwd()}/AUDIT_LOG_FILE.log' 
+        self.DO_SUPRESS_UNKNOWN_EXCEPTIONS = False

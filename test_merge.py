@@ -1,11 +1,12 @@
-import pytest
+import hashlib
 import tempfile
 from pathlib import Path
-import hashlib
 from typing import Any
 
-from config import MergeConfig
+import pytest
+
 import merge
+from config import MergeConfig
 
 DEBUG = True # if true, tempdirectories aren't cleaned up for further investigation.
 
@@ -17,8 +18,9 @@ FILE_NAMES_LIST = [
         'file space. txt', 
         'file space. .txt', 
         'file7.txt.txt', 
-        '.-file8.txt', 
-        '~file9.txt'
+        '.-file8.txt', # MAC uses this format for special files
+        '~file9.txt',
+        'Overview de Solución Propuesta.txt' # accented files
     ]
 
 FILE_SIZES_LIST = [0, 1, 2, 3, 4]
@@ -163,7 +165,7 @@ def analyze_structure(directory_to_compare, hash_table):
 
 def test_merge_copy(create_src_empty_dst: dict[str, Any]):
     data = create_src_empty_dst
-    assert len(data['ht']) == 36, f'there should be 36 hashes from the source directory'
+    assert len(data['ht']) == EXPECTED_FILES, f'there should be 36 hashes from the source directory'
     assert data['src'] != data['dst'], f'src and dst folders should be different'
     
 def test_merge_copy_no_delete_empty_target(create_src_empty_dst: dict[str, Any]):
@@ -242,7 +244,7 @@ def test_merge_twice_no_delete_empty_target(create_src_empty_dst: dict[str, Any]
     assert dir_count_src == SOURCE_DIRECTORIES
     assert file_count_src == EXPECTED_FILES
     
-    # check that destination has all files untouched but that there wasn't any new copy
+    # check that destination has all files untouched but that there wasn't any new copy operations
     dir_count_dst, file_count_dst = analyze_structure(data['dst'], data['ht'])
     assert dir_count_dst == NON_EMPTY_DIRECTORIES
     assert file_count_dst == EXPECTED_FILES

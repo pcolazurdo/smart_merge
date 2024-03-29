@@ -8,6 +8,7 @@ alive-progress = "*"
 
 [dev-packages]
 pytest = "*"
+isort = "*"
 
 [requires]
 python_version = "3.12"
