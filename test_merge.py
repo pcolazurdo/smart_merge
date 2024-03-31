@@ -8,7 +8,7 @@ import pytest
 import merge
 from config import MergeConfig
 
-DEBUG = True # if true, tempdirectories aren't cleaned up for further investigation.
+DEBUG = False # if true, tempdirectories aren't cleaned up for further investigation.
 
 FILE_NAMES_LIST = [
         'file1', 

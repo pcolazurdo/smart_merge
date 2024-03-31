@@ -2,7 +2,6 @@
 
 * Create a test for the whole project
 * try to avoid using with alive_bar() and move to a function like mechanism
-* move the DO_* to a config class
 * add help info on the arguments
 * Create the option to calculate the size of the job before running 
 * multi threaded
@@ -14,9 +13,12 @@
     * script option
     * new file names option
     * stats output
-* test cases / add things like "Presentación HDI Seguros 0.1 Overview de Solcuión Porpuesta 28102013.ppt"
 * rethink how to count files when do_\* is disabled
 * move merge operations to its own class and file and leave the cli parsing only on the main file
 * add exclusion files
 * add timing
 * add continuous, pause, interrupt, continue option
+* add database handling for improved logging
+
+# Done:
+* move the DO_* to a config class

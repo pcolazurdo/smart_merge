@@ -9,7 +9,7 @@ from pathlib import Path
 from shutil import copy2
 from time import sleep
 
-from config import MergeConfig
+from config import ScanConfig
 from stats import ProcessStats
 
 try:
@@ -18,7 +18,7 @@ except ImportError as e:
     from utils import alive_bar
 
 stats = ProcessStats()
-config = MergeConfig()
+config = ScanConfig()
 
 
 def reset_stats():
@@ -26,7 +26,7 @@ def reset_stats():
     stats = ProcessStats()
 
 
-def set_config(new_config: MergeConfig):
+def set_config(new_config: ScanConfig):
     global config
     config = new_config
 
@@ -72,48 +72,6 @@ def handle_exception(func):
 
 
 @handle_exception
-def delete_file(file_name):
-    if config.DO_DELETE:
-        # print_or_quiet(f'Would delete {file_name}')
-        # try:
-        file_name.unlink()
-    # except Exception as e:
-    # raise Exception(f"Error unlyinking {file_name} : {e}")
-    else:
-        print_or_quiet(f'rm "{file_name}"')
-    pass
-
-
-@handle_exception
-def copy_file(source_file, destination_file):
-    create_directory(destination_file.parent)
-    if config.DO_COPY:
-        # print_or_quiet(f'Would copy {source_file} -> {destination_file}')
-        # try:
-        return copy2(source_file, destination_file)
-    # except Exception as e:
-    # raise Exception(f"Error copying {source_file} -> {destination_file}: {e}")
-    else:
-        print_or_quiet(f'cp "{source_file}" "{destination_file}"')
-        return destination_file
-
-
-@cache
-@handle_exception
-def create_directory(directory_path_name):
-    assert "Path" in str(type(directory_path_name))
-    if not directory_path_name.is_dir():
-        if config.DO_MKDIR:
-            # print_or_quiet(f"Would create Directory: {directory_path_name}")
-            # try:
-            directory_path_name.mkdir(parents=True, exist_ok=True)
-        # except Exception as e:
-        # raise Exception(f"Error mkdiring {directory_path_name}: {e}")
-        else:
-            print_or_quiet(f"mkdir -p {directory_path_name}")
-
-
-@handle_exception
 def file_issame(source_file, destination_file):
     assert "Path" in str(type(source_file))
     assert "Path" in str(type(destination_file))
@@ -137,18 +95,21 @@ def calc_size(file_name):
     else:
         return 0
 
-
 @handle_exception
-def clean_up(source_dir):
-    assert "str" in str(type(source_dir))
-    s = Path(source_dir).resolve()
-    for root, dirs, files in s.walk(top_down=False, on_error=walk_error):
-        for d in dirs:
-            t = s / root / d
-            if config.DO_CLEANUP_SOURCE:
-                t.rmdir()
-            else:
-                print_or_quiet(f'rm -r "{t}"')
+def hash_file(file_name: str):
+    assert "Path" in str(type(file_name))
+    hash_function = config.HASH_FUNCTION()
+    if calc_size(file_name) < config.SIZE_THRESHOLD:
+        return None
+
+    with file_name.open('rb') as f:
+        while True:
+            data = f.read(config.BUF_SIZE)
+            if not data:
+                break
+            hash_function.update(data)
+    
+    return hash_function.hexdigest()
 
 
 def ignore_file(source_file):
@@ -156,68 +117,20 @@ def ignore_file(source_file):
     print_or_quiet(f"Would ignore {source_file}")
 
 
-def generate_filename(destination_file):
-    assert "Path" in str(type(destination_file))
-    global session_id
-    parent_path = destination_file.parent
-    new_file_name = f"{destination_file.stem}-{session_id}{destination_file.suffix}"
-    possible_destination_name = Path(parent_path / new_file_name)
-    print_or_quiet(
-        f"Original name {destination_file} ## Possible new name: {possible_destination_name}"
-    )
-
-    # new file with uuid name also exists
-    if possible_destination_name.is_file():
-        session_id = generation_session_id()
-        possible_destination_name = generate_filename(destination_file)
-
-    return possible_destination_name
-
-
-def merge_file(source_file, destination_file):
-    assert "Path" in str(type(source_file))
-    assert "Path" in str(type(destination_file))
-    source_size = calc_size(source_file)
-    stats.processed(source_size)
-    if Path(destination_file).is_file():
-        if not file_issame(source_file, destination_file):
-            # file exists but is different
-            destination_file = generate_filename(destination_file)
-            if len(str(copy_file(source_file, destination_file))) <= 0:
-                raise Exception(
-                    f"copy_file {source_file} -> {destination_file} failed!"
-                )
-            else:
-                stats.duplicated(source_size)
-        else:
-            ignore_file(source_file)
-            stats.ignored(source_size)
-    else:
-        if len(str(copy_file(source_file, destination_file))) <= 0:
-            raise Exception(f"copy_file {source_file} -> {destination_file} failed!")
-        else:
-            stats.copied(source_size)
-    delete_file(source_file)
-    stats.deleted(
-        source_size
-    )  # TODO: stats.deleted should be inside the delete command
-
-
 def walk_error(e):
     print_or_quiet("my Error", e)
 
 
-def tree_walk(source_dir, destination_dir):
+def tree_walk(source_dir):
     assert "str" in str(type(source_dir))
     assert "str" in str(type(destination_dir))
     s = Path(source_dir).resolve()
-    t = Path(destination_dir).resolve()
     source_depth = len(s.parts)
     with alive_bar() as bar:
         for root, dirs, files in s.walk(top_down=True, on_error=walk_error):
             for f in files:
                 target_dir = t.joinpath(*root.parts[source_depth:])
-                merge_file(root / f, target_dir / f)
+                scan_file(root / f)
                 bar()
 
 
