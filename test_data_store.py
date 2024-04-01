@@ -21,12 +21,12 @@ def new_database_name() -> str:
 
 def test_create_schema_on_new_db(new_database_name):
     ds = DataStore(new_database_name)
-    assert ds.create_schema() == 2
+    assert  "data_store.DataStore" in str(type(ds)) 
 
 
 def test_create_schema_on_new_default():
     ds = DataStore()
-    assert ds.create_schema() == 0
+    assert ds.create_schema_if_needed() == 0
 
 
 def test_read_existing_files():
@@ -132,3 +132,14 @@ def test_query_creation(open_default_db):
     assert (
         ret == 'SELECT * FROM errors WHERE session_id == "1" AND file_name == "pp"'
     ), ret
+
+
+def test_query_1(open_default_db):
+    ds = open_default_db
+    session_ids = [1, 2]
+    s = ', '.join([f'"{sess}"' for sess in session_ids])
+    sessions_list = f'[{s}]'
+    stmt = f"selecy * from files where session_id in {sessions_list}"
+    
+    with pytest.raises(Exception): 
+        ds.execute_query(stmt) 

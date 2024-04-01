@@ -11,6 +11,7 @@ from time import sleep
 
 from config import ScanConfig
 from stats import ProcessStats
+from data_store import DataStore, FileRecord, ErrorRecord
 
 try:
     from alive_progress import alive_bar
@@ -19,6 +20,7 @@ except ImportError as e:
 
 stats = ProcessStats()
 config = ScanConfig()
+ds = DataStore(config.DATASTORE)
 
 
 def reset_stats():
@@ -36,8 +38,8 @@ def print_or_quiet(*args, **kwargs):
         print(*args, **kwargs)
 
 
-def generation_session_id():
-    sid = str(uuid.uuid4())[0:8]
+def get_session_id():
+    sid = str(uuid.uuid4())
     print(f"Generating new session id: {sid}")
     return sid
 
@@ -70,21 +72,6 @@ def handle_exception(func):
 
     return handle_exception_inner
 
-
-@handle_exception
-def file_issame(source_file, destination_file):
-    assert "Path" in str(type(source_file))
-    assert "Path" in str(type(destination_file))
-    if config.DO_COMPARE:
-        result = cmp(source_file, destination_file, shallow=config.DO_SHALLOW)
-        if result == None:  # There was an exception
-            result = False
-    else:
-        result = True
-        
-    return result
-
-
 @handle_exception
 def calc_size(file_name):
     assert "Path" in str(type(file_name))
@@ -99,8 +86,6 @@ def calc_size(file_name):
 def hash_file(file_name: str):
     assert "Path" in str(type(file_name))
     hash_function = config.HASH_FUNCTION()
-    if calc_size(file_name) < config.SIZE_THRESHOLD:
-        return None
 
     with file_name.open('rb') as f:
         while True:
@@ -110,6 +95,18 @@ def hash_file(file_name: str):
             hash_function.update(data)
     
     return hash_function.hexdigest()
+
+def save_data(file_name: Path) -> bool:
+    assert "Path" in str(type(file_name))
+    file_size = calc_size(file_name)
+    if file_size > config.SIZE_THRESHOLD:
+        hash = hash_file(file_name)
+    else:
+        hash = config.UNDER_THRESHOLD_TEXT
+    
+    file_record = FileRecord(config.SESSION_ID, str(file_name), file_size, config.TIMESTAMP, hash)
+    ds.insert_file(file_record)
+    return file_record
 
 
 def ignore_file(source_file):
@@ -123,14 +120,12 @@ def walk_error(e):
 
 def tree_walk(source_dir):
     assert "str" in str(type(source_dir))
-    assert "str" in str(type(destination_dir))
     s = Path(source_dir).resolve()
     source_depth = len(s.parts)
     with alive_bar() as bar:
         for root, dirs, files in s.walk(top_down=True, on_error=walk_error):
             for f in files:
-                target_dir = t.joinpath(*root.parts[source_depth:])
-                scan_file(root / f)
+                save_data(root / f)
                 bar()
 
 
@@ -140,18 +135,12 @@ def get_stats():
 
 def run(args):
     source = args.source
-    destination = args.destination
 
     if not Path(source).resolve().is_dir():
         print(f"Source: {source} - is not a directory. Aborting")
         sys.exit(1)
 
-    if not Path(destination).resolve().is_dir():
-        print(f"Destination: {destination} - is not a directory. Aborting")
-        sys.exit(1)
-
     print(f"Source: {source} - files will be deleted from this directory after copied")
-    print(f"Destination: {destination}")
     print (config.show_config())
 
     with alive_bar(total=config.SECURITY_TIMEOUT) as bar:
@@ -161,14 +150,12 @@ def run(args):
             sleep(1)
             i += 1
 
-    print(f"Merging ...")
+    print(f"Scanning ...")
 
-    tree_walk(source, destination)
-    clean_up(source)
+    tree_walk(source)
 
     print(
-        f"""Session Id (in case you want to file new files was): {session_id}. For example you can do
-          fd \"\\-{session_id}\" {destination}"""
+        f"""Session Id (in case you want to file new files was): {config.SESSION_ID}."""
     )
 
     if config.DO_STATS:
@@ -178,42 +165,27 @@ def run(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog="merge",
-        description="Smart merge of directories",
+        description="Scan of directories",
         epilog="Use carefully",
     )
     parser.add_argument("source")
-    parser.add_argument("destination")
-    parser.add_argument("-c", "--copy", action="store_false", dest="DO_COPY")
-    parser.add_argument("-d", "--delete", action="store_true", dest="DO_DELETE")
     parser.add_argument(
         "-i", "--ignore", action="store_false", dest="IGNORE_DOT_UNDERSCORE_FILES"
-    )
-    parser.add_argument(
-        "-p", "--compare", action="store_false", dest="DO_COMPARE"
     )
     parser.add_argument("-q", "--quiet", action="store_false", dest="DO_QUIET")
     parser.add_argument("-s", "--stats", action="store_false", dest="DO_STATS")
     parser.add_argument(
         "-t", "--timeout", action="store", type=int, dest="SECURITY_TIMEOUT", default=30
     )
-    parser.add_argument(
-        "-w", "--shallow", action="store_true", dest="DO_SHALLOW")
-
     args = parser.parse_args()
-    print(args.source, args.destination, args)
-    session_id = generation_session_id()
-    config.DO_DELETE = args.DO_DELETE
-    config.DO_COMPARE = args.DO_COMPARE
-    config.DO_COPY = args.DO_COPY
-    config.DO_MKDIR = True
-    config.DO_CLEANUP_SOURCE = True & config.DO_DELETE
+    print(args.source, args)
+    config.SESSION_ID = get_session_id()
     config.IGNORE_DOT_UNDERSCORE_FILES = args.IGNORE_DOT_UNDERSCORE_FILES
     config.DO_QUIET = args.DO_QUIET
     config.DO_STATS = args.DO_STATS
     config.SECURITY_TIMEOUT = max(5, args.SECURITY_TIMEOUT)  # in seconds
-    config.DO_SHALLOW = args.DO_SHALLOW
     config.LOG_FILE_NOT_FOUND_ERRORS = True
-    config.AUDIT_LOG_FILE = f"{os.getcwd()}/AUDIT_LOG_FILE-{session_id}.log"
+    config.AUDIT_LOG_FILE = f"{os.getcwd()}/AUDIT_LOG_FILE-{config.SESSION_ID}.log"
     config.DO_SUPRESS_UNKNOWN_EXCEPTIONS = True
 
     run(args)

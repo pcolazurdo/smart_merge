@@ -1,6 +1,7 @@
 import os
 from dataclasses import dataclass
 import hashlib
+from datetime import datetime
 
 
 class MergeConfig():
@@ -62,6 +63,8 @@ class ScanConfig():
     DO_QUIET: bool
     DO_STATS: bool 
     SECURITY_TIMEOUT: int
+    DATASTORE:str
+    SESSION_ID: str
 
     LOG_FILE_NOT_FOUND_ERRORS: bool
     AUDIT_LOG_FILE: str
@@ -70,6 +73,8 @@ class ScanConfig():
     BUF_SIZE: int
     SIZE_THRESHOLD: int
     HASH_FUNCTION: callable
+    TIMESTAMP: str
+    UNDER_THRESHOLD_TEXT: str
     
     # init with safe values
     def __init__(self):
@@ -83,6 +88,10 @@ class ScanConfig():
         self.BUF_SIZE = 65536  # lets read stuff in 64kb chunks!
         self.SIZE_THRESHOLD = 65536  # read stuff in 64kb chunks!
         self.HASH_FUNCTION = hashlib.md5
+        self.DATASTORE = 'datastore.db'
+        self.TIMESTAMP = datetime.now().isoformat(timespec='microseconds')
+        self.SESSION_ID = ''
+        self.UNDER_THRESHOLD_TEXT = "UNDER THRESHOLD"
 
     def show_config(self):
         config_formatted = f"""
