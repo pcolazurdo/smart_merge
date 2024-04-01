@@ -1,5 +1,6 @@
 import sqlite3
 from dataclasses import dataclass
+from typing import List
 
 DATABASE_NAME = "data.db"
 QUIET = True
@@ -47,6 +48,60 @@ CREATE_DEF = {
     )""",
 }
 
+@dataclass
+class DataQuery:
+
+    select_clause: str = None
+    from_clause: str = None
+    where_clause: str | List = None
+    group_clause: str = None
+    having_clause: str | List = None
+    order_clause: str = None
+    limit_clause: int = None
+
+    def format_query_in_clause(self, column_name, item_list: List) -> str:
+        query = ''
+        if len(item_list) > 0:
+                t = ', '.join([f"'{item}'" for item in item_list])
+                item_list_clause = f'({t})'
+                query = f"""{column_name} in {item_list_clause}"""
+        return query
+
+
+    def format_query(self) -> str:
+        # assert type(select_clause) == str and len(select_clause) > 0, select_clause
+        # assert type(from_clause) == str and len(from_clause) > 0, from_clause
+        # assert where_clause == None or type(where_clause) == str and len(where_clause) > 0, where_clause
+        # assert group_clause == None or type(group_clause) == str and len(group_clause) > 0, group_clause
+        # assert having_clause == None or type(having_clause) == str and len(having_clause) > 0, having_clause
+        # assert limit_clause == None or type(limit_clause) == int and limit_clause > 0, limit_clause
+
+        stmt = f"""SELECT {self.select_clause} FROM {self.from_clause}"""
+        if self.where_clause: 
+            assert 'list' in str(type(self.where_clause)) or 'str' in str(type(self.where_clause))
+            _where_clause = self.where_clause
+            if 'list' in str(type(self.where_clause)):
+                _where_clause = ' AND '.join(self.where_clause)
+            stmt = f"""{stmt}
+WHERE {_where_clause}"""
+        if self.group_clause:
+            stmt = f"""{stmt}
+GROUP BY {self.group_clause}"""
+        if self.having_clause:
+            _having_clause = self.having_clause
+            if 'list' in str(type(self.having_clause)):
+                _having_clause = ' AND '.join(self.having_clause)
+            stmt = f"""{stmt}
+HAVING {_having_clause}"""
+        if self.order_clause:
+            stmt = f"""{stmt}
+ORDER BY {self.order_clause}"""
+        if self.limit_clause:
+            stmt = f"""{stmt}
+LIMIT {self.limit_clause}"""
+        self.stmt = stmt.strip()
+        return self.stmt
+    
 
 class DataStore:
 
@@ -118,31 +173,31 @@ class DataStore:
         WHERE session_id = "{file.session_id}" and file_name = "{file.file_name}"'''
         return self.execute_query(stmt)
 
-
-    def create_query_stmt(self, table_name:str, **kwargs):
+    def create_query_stmt(self, table_name: str, **kwargs):
         stmt = f"""SELECT * FROM {table_name}"""
         stmt_where_clause = []
         for k, v in kwargs.items():
-            stmt_where_clause.append(f'{k} == \"{v}\"')
+            stmt_where_clause.append(f'{k} == "{v}"')
 
         if len(stmt_where_clause) > 0:
-            stmt_where = ' AND '.join(stmt_where_clause)
-            stmt = f'{stmt} WHERE {stmt_where}'
+            stmt_where = " AND ".join(stmt_where_clause)
+            stmt = f"{stmt} WHERE {stmt_where}"
 
         return stmt
 
-
-    def get_records(self, table_name: str, session_id: str=None, file_name:str= None):
+    def get_records(
+        self, table_name: str, session_id: str = None, file_name: str = None
+    ):
         stmt = f"""SELECT * FROM {table_name}"""
         stmt_where_clause = []
         if session_id:
-            stmt_where_clause.append(f'session_id == \"{session_id}\"')
+            stmt_where_clause.append(f'session_id == "{session_id}"')
         if file_name:
-            stmt_where_clause.append(f'file_name == \"{file_name}\"')
-        
+            stmt_where_clause.append(f'file_name == "{file_name}"')
+
         if len(stmt_where_clause) > 0:
-            stmt_where = ' AND '.join(stmt_where_clause)
-            stmt = f'{stmt} WHERE {stmt_where}'
+            stmt_where = " AND ".join(stmt_where_clause)
+            stmt = f"{stmt} WHERE {stmt_where}"
 
         res = self.execute_query(stmt)
         for r in res.fetchall():
@@ -151,5 +206,10 @@ class DataStore:
     def format_content_table(self, table_name):
         stmt = f"""SELECT * FROM {table_name}"""
         res = self.execute_query(stmt)
+        for r in res.fetchall():
+            yield r
+
+    def exec_query(self, dq: DataQuery):
+        res = self.execute_query(dq.format_query())
         for r in res.fetchall():
             yield r

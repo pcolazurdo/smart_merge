@@ -1,4 +1,4 @@
-from data_store import DataStore, FileRecord, ErrorRecord
+from data_store import DataStore, FileRecord, ErrorRecord, DataQuery
 import uuid
 from typing import Any
 import pytest
@@ -139,7 +139,43 @@ def test_query_1(open_default_db):
     session_ids = [1, 2]
     s = ', '.join([f'"{sess}"' for sess in session_ids])
     sessions_list = f'[{s}]'
-    stmt = f"selecy * from files where session_id in {sessions_list}"
+    stmt = f"select * from files where session_id in {sessions_list}"
     
     with pytest.raises(Exception): 
         ds.execute_query(stmt) 
+
+
+def test_query_builder_inner_join(open_default_db):
+    STMT1="""SELECT file_hash, file_size, COUNT(*) as cnt FROM files
+WHERE session_id in ('1', '2') AND file_hash != "UNDER THRESHOLD"
+GROUP BY file_size, file_hash
+HAVING cnt > 1"""
+    STMT2="""SELECT f.file_hash, f.file_size, f.file_name FROM files AS f INNER JOIN (SELECT file_hash, file_size, COUNT(*) as cnt FROM files
+WHERE session_id in ('1', '2') AND file_hash != "UNDER THRESHOLD"
+GROUP BY file_size, file_hash
+HAVING cnt > 1) AS q ON f.file_hash == q.file_hash AND f.file_size == q.file_size
+ORDER BY f.file_hash, f.file_size"""
+    
+    ds = open_default_db
+    session_ids = [1, 2]
+    
+    data_query1 = DataQuery()
+    data_query1.select_clause = 'file_hash, file_size, COUNT(*) as cnt'
+    data_query1.from_clause = 'files'
+    data_query1.where_clause = [f'{data_query1.format_query_in_clause('session_id', session_ids)}']
+    data_query1.where_clause.append(f'file_hash != "UNDER THRESHOLD"')
+    data_query1.group_clause = 'file_size, file_hash'
+    data_query1.having_clause = 'cnt > 1'
+    query1 = data_query1.format_query()
+
+    data_query2 = DataQuery()
+    data_query2.select_clause = 'f.file_hash, f.file_size, f.file_name'
+    data_query2.from_clause = f'''files AS f INNER JOIN ({query1}) AS q ON f.file_hash == q.file_hash AND f.file_size == q.file_size'''
+    data_query2.order_clause = 'f.file_hash, f.file_size'
+    query2 = data_query2.format_query()
+    
+    assert query1 == STMT1
+    assert query2 == STMT2
+
+    # assert query1 == 0, query1
+

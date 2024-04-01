@@ -153,6 +153,7 @@ def clean_up(source_dir):
 
 def ignore_file(source_file):
     assert "Path" in str(type(source_file))
+    audit_exceptions(f"Ignored file: {source_file}")
     print_or_quiet(f"Would ignore {source_file}")
 
 
@@ -179,24 +180,29 @@ def merge_file(source_file, destination_file):
     assert "Path" in str(type(destination_file))
     source_size = calc_size(source_file)
     stats.processed(source_size)
-    if Path(destination_file).is_file():
-        if not file_issame(source_file, destination_file):
-            # file exists but is different
-            destination_file = generate_filename(destination_file)
-            if len(str(copy_file(source_file, destination_file))) <= 0:
-                raise Exception(
-                    f"copy_file {source_file} -> {destination_file} failed!"
-                )
-            else:
-                stats.duplicated(source_size)
-        else:
+    if config.DO_IGNORE:
+        if config.IGNORE_PATH in source_file:
             ignore_file(source_file)
             stats.ignored(source_size)
     else:
-        if len(str(copy_file(source_file, destination_file))) <= 0:
-            raise Exception(f"copy_file {source_file} -> {destination_file} failed!")
+        if Path(destination_file).is_file():
+            if not file_issame(source_file, destination_file):
+                # file exists but is different
+                destination_file = generate_filename(destination_file)
+                if len(str(copy_file(source_file, destination_file))) <= 0:
+                    raise Exception(
+                        f"copy_file {source_file} -> {destination_file} failed!"
+                    )
+                else:
+                    stats.duplicated(source_size)
+            else:
+                ignore_file(source_file)
+                stats.ignored(source_size)
         else:
-            stats.copied(source_size)
+            if len(str(copy_file(source_file, destination_file))) <= 0:
+                raise Exception(f"copy_file {source_file} -> {destination_file} failed!")
+            else:
+                stats.copied(source_size)
     delete_file(source_file)
     stats.deleted(
         source_size
@@ -302,5 +308,7 @@ if __name__ == "__main__":
     config.LOG_FILE_NOT_FOUND_ERRORS = True
     config.AUDIT_LOG_FILE = f"{os.getcwd()}/AUDIT_LOG_FILE-{session_id}.log"
     config.DO_SUPRESS_UNKNOWN_EXCEPTIONS = True
+    config.DO_IGNORE = True
+    config.IGNORE_PATH = "$RECYCLE.BIN"
 
     run(args)

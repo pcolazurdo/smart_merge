@@ -8,7 +8,7 @@ from pathlib import Path
 import pandas as pd
 
 from config import ScanConfig
-from data_store import DataStore, FileRecord, ErrorRecord
+from data_store import DataStore, FileRecord, ErrorRecord, DataQuery
 
 config = ScanConfig()
 ds = DataStore(config.DATASTORE)
@@ -27,53 +27,57 @@ def run(args):
     target = args.target
     session_ids = args.sessions
 
-    query = None
+    query = DataQuery()
     if task == 'list':
         if target == 'sessions':
-            query = """SELECT DISTINCT session_id FROM files"""
+            query.select_clause = 'DISTINCT session_id'
+            query.from_clause = 'files'
         if target == 'duplicatedpaths':
-            query = """SELECT file_name, COUNT(*) as cnt FROM files"""
+            query.select_clause = 'file_name, COUNT(*) as cnt'
+            query.from_clause = 'files'
             if len(session_ids) > 0:
-                s = ', '.join([f"'{sess}'" for sess in session_ids])
-                sessions_list = f'({s})'
-                query = f"""{query} WHERE session_id in {sessions_list}"""
-            query = f"""{query} GROUP BY file_size, file_hash HAVING cnt > 1"""
+                query.where_clause = f'{query.format_query_in_clause('session_id', session_ids)}'
+            else:
+                query.where_clause = None
+            query.group_clause = 'file_size, file_hash'
+            query.having_clause = 'cnt > 1'
         if target == 'duplicated':
-            query2 = """SELECT file_hash, file_size, COUNT(*) as cnt FROM files"""
-            query2 = f'{query2} WHERE file_hash != "{config.UNDER_THRESHOLD_TEXT}"'
+            query_inner = DataQuery()
+            query_inner.select_clause = 'file_hash, file_size, COUNT(*) as cnt'
+            query_inner.from_clause = 'files'
             if len(session_ids) > 0:
-                s = ', '.join([f"'{sess}'" for sess in session_ids])
-                sessions_list = f'({s})'
-                query2 = f"""{query2} AND session_id in {sessions_list}"""
-            query2 = f"""{query2} GROUP BY file_size, file_hash HAVING cnt > 1"""
-            query = f"""SELECT f.file_hash, f.file_size, f.file_name FROM files AS f INNER JOIN ({query2}) AS q ON
-             f.file_hash == q.file_hash 
-             AND f.file_size == q.file_size 
-             ORDER BY f.file_hash, f.file_size
-             """
+                query_inner.where_clause = [f'{query_inner.format_query_in_clause('session_id', session_ids)}']
+            else:
+                query_inner.where_clause = []
+            query_inner.where_clause.append(f'file_hash != "{config.UNDER_THRESHOLD_TEXT}"')
+            query_inner.group_clause = 'file_size, file_hash'
+            query_inner.having_clause = 'cnt > 1'
+
+            query.select_clause = 'f.file_hash, f.file_size, f.file_name'
+            query.from_clause = f'''files AS f INNER JOIN ({query_inner.format_query()}) AS q ON f.file_hash == q.file_hash AND f.file_size == q.file_size'''
+            query.order_clause = 'f.file_hash, f.file_size'
         if target == 'files':
-            query = """SELECT * FROM files"""
-            query = f'{query} WHERE file_hash != "{config.UNDER_THRESHOLD_TEXT}"'
+            query.select_clause = '*'
+            query.from_clause = 'files'
             if len(session_ids) > 0:
-                s = ', '.join([f"'{sess}'" for sess in session_ids])
-                sessions_list = f'({s})'
-                query = f"""{query} AND session_id in {sessions_list}"""
+                query.where_clause = [f'{query_inner.format_query_in_clause('session_id', session_ids)}']
+            else:
+                query.where_clause = []
+            query.where_clause.append(f'file_hash != "{config.UNDER_THRESHOLD_TEXT}"')
             
     if task == 'count':
         if target == 'sessions':
-            query = """SELECT COUNT(DISTINCT session_id) FROM files"""
+            query.select_clause = 'COUNT(DISTINCT session_id)'
+            query.from_clause ='files'
         if target == 'files':
-            query = """SELECT * FROM files"""
-            if len(session_ids) > 0:
-                s = ', '.join([f"'{sess}'" for sess in session_ids])
-                sessions_list = f'({s})'
-                query = f"""{query} WHERE session_id in {sessions_list}"""
+            query.select_clause = '*' 
+            query.from_clause = 'files'
+            query.where_clause = [f'{query_inner.format_query_in_clause('session_id', session_ids)}']
         
-    
     if query:
         try:
-            print(query)
-            result = ds.execute_query(query)
+            # print(query)
+            result = ds.exec_query(query)
             # result = pd.read_sql_query(query, ds.db).drop_duplicates(keep=False)
             # print(result)
         except Exception as e:
@@ -94,6 +98,6 @@ if __name__ == "__main__":
     parser.add_argument("target")
     parser.add_argument("-s", "--session", action= 'append', dest='sessions', default=[])
     args = parser.parse_args()
-    print(args.task, args.target, args)
+    # print(args.task, args.target, args)
     
     run(args)

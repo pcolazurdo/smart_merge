@@ -15,6 +15,8 @@ class MergeConfig():
     DO_STATS: bool 
     SECURITY_TIMEOUT: int
     DO_SHALLOW: bool
+    DO_IGNORE: bool
+    IGNORE_PATH: str
     
     LOG_FILE_NOT_FOUND_ERRORS: bool
     AUDIT_LOG_FILE: str
@@ -32,6 +34,8 @@ class MergeConfig():
         self.DO_STATS = True
         self.SECURITY_TIMEOUT = 60
         self.DO_SHALLOW = False
+        self.DO_IGNORE = False
+        self.IGNORE_PATH = ""
         
         self.LOG_FILE_NOT_FOUND_ERRORS = False
         self.AUDIT_LOG_FILE= f'{os.getcwd()}/AUDIT_LOG_FILE.log' 
