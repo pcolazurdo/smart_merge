@@ -101,7 +101,7 @@ ORDER BY {self.order_clause}"""
 LIMIT {self.limit_clause}"""
         self.stmt = stmt.strip()
         return self.stmt
-    
+
 
 class DataStore:
 
@@ -213,3 +213,9 @@ class DataStore:
         res = self.execute_query(dq.format_query())
         for r in res.fetchall():
             yield r
+
+    def headers(self):
+        if self.cur and 'description' in self.cur and self.cur.description:
+            return list(map(lambda x: x[0], self.cur.description))
+        else:
+            return None
