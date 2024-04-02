@@ -100,7 +100,7 @@ def run(args):
     if query:
         try:
             # print(query)
-            results = ds.exec_query(query).fetchall()
+            results = ds.exec_query(query)
             if task == 'list':
                 if target == 'duplicated':
                     df = pd.DataFrame.from_records(results, columns=ds.headers())
