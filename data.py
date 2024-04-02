@@ -27,7 +27,7 @@ def list_sessions(query: DataQuery):
     query.from_clause = 'files'
     return query
 
-def list_duplicated(query: DataQuery):
+def list_duplicated(query: DataQuery, session_ids):
     query_inner = DataQuery()
     query_inner.select_clause = 'file_hash, file_size, COUNT(*) as cnt'
     query_inner.from_clause = 'files'
@@ -44,7 +44,7 @@ def list_duplicated(query: DataQuery):
     query.order_clause = 'f.file_hash, f.file_size'
     return query
 
-def list_duplicatedpaths(query: DataQuery):
+def list_duplicatedpaths(query: DataQuery, session_ids):
     query.select_clause = 'file_name, COUNT(*) as cnt'
     query.from_clause = 'files'
     if len(session_ids) > 0:
@@ -55,7 +55,7 @@ def list_duplicatedpaths(query: DataQuery):
     query.having_clause = 'cnt > 1'
     return query
 
-def list_files(query: DataQuery):
+def list_files(query: DataQuery, session_ids):
     query.select_clause = '*'
     query.from_clause = 'files'
     if len(session_ids) > 0:
@@ -70,7 +70,7 @@ def count_sessions(query: DataQuery):
     query.from_clause = 'files'
     return query
 
-def count_files(query: DataQuery):
+def count_files(query: DataQuery, session_ids):
     query.select_clause = '*'
     query.from_clause = 'files'
     query.where_clause = [f'{query_inner.format_query_in_clause('session_id', session_ids)}']
@@ -86,16 +86,16 @@ def run(args):
         if target == 'sessions':
             query = list_sessions(query)
         if target == 'duplicatedpaths':
-            query = list_duplicatedpaths(query)
+            query = list_duplicatedpaths(query, session_ids)
         if target == 'duplicated':
-            query = list_duplicated(query)
+            query = list_duplicated(query, session_ids)
         if target == 'files':
-            query = list_files(query)
+            query = list_files(query, session_ids)
     if task == 'count':
         if target == 'sessions':
             query = count_sessions(query)
         if target == 'files':
-            query = count_files(query)
+            query = count_files(query, session_ids)
             
     if query:
         try:
