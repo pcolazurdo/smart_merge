@@ -101,8 +101,13 @@ def run(args):
         try:
             # print(query)
             results = ds.exec_query(query).fetchall()
-            # result = pd.read_sql_query(query, ds.db).drop_duplicates(keep=False)
-            # print(result)
+            if task == 'list':
+                if target == 'duplicated':
+                    df = pd.DataFrame.from_records(results, columns=ds.headers())
+                    print(df)
+                    return     
+            for i in results:
+                print(i)
         except Exception as e:
             print(query)
             print(e)
@@ -110,14 +115,7 @@ def run(args):
         print("Nothing to show")
         return
 
-    if task == 'list':
-        if target == 'duplicated':
-            df = pd.DataFrame.from_records(results, columns=ds.headers())
-            print(df)
-            return 
     
-    for i in results:
-        print(i)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
