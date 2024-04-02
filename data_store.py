@@ -120,7 +120,7 @@ class DataStore:
         self.audit = audit
         self.create_schema_if_needed()
 
-    def execute_query(self, stmt: str):
+    def _execute_query(self, stmt: str):
         try:
             audit(stmt)
             res = self.cur.execute(stmt)
@@ -138,7 +138,7 @@ class DataStore:
 
     def detect_table(self, table_name: str):
         stmt = f'''SELECT COUNT(*) FROM main.sqlite_schema WHERE tbl_name == "{table_name}"'''
-        data = self.execute_query(stmt).fetchone()
+        data = self._execute_query(stmt).fetchone()
         if data and data[0] == 1:
             return True
         else:
@@ -146,7 +146,7 @@ class DataStore:
 
     def create_table(self, table_name: str):
         stmt = f"""CREATE TABLE {table_name} {CREATE_DEF[table_name]}"""
-        return self.execute_query(stmt)
+        return self._execute_query(stmt)
 
     def create_schema_if_needed(self) -> int:
         count = 0
@@ -161,17 +161,17 @@ class DataStore:
     def insert_error(self, error: ErrorRecord) -> bool:
         stmt = f"""INSERT INTO errors VALUES
         ("{error.session_id}", "{error.file_name}", "{error.timestamp}", "{error.exception_msg}", "{error.recoverable}")"""
-        return self.execute_query(stmt)
+        return self._execute_query(stmt)
 
     def insert_file(self, file: FileRecord) -> bool:
         stmt = f"""INSERT INTO files VALUES
         ("{file.session_id}", "{file.file_name}", {file.file_size}, "{file.timestamp}", "{file.file_hash}")"""
-        return self.execute_query(stmt)
+        return self._execute_query(stmt)
 
     def update_count(self, file: FileRecord):
         stmt = f'''SELECT * FROM files  
         WHERE session_id = "{file.session_id}" and file_name = "{file.file_name}"'''
-        return self.execute_query(stmt)
+        return self._execute_query(stmt)
 
     def create_query_stmt(self, table_name: str, **kwargs):
         stmt = f"""SELECT * FROM {table_name}"""
@@ -199,18 +199,18 @@ class DataStore:
             stmt_where = " AND ".join(stmt_where_clause)
             stmt = f"{stmt} WHERE {stmt_where}"
 
-        res = self.execute_query(stmt)
+        res = self._execute_query(stmt)
         for r in res.fetchall():
             yield r
 
     def format_content_table(self, table_name):
         stmt = f"""SELECT * FROM {table_name}"""
-        res = self.execute_query(stmt)
+        res = self._execute_query(stmt)
         for r in res.fetchall():
             yield r
 
     def exec_query(self, dq: DataQuery):
-        res = self.execute_query(dq.format_query())
+        res = self._execute_query(dq.format_query())
         for r in res.fetchall():
             yield r
 
