@@ -109,6 +109,7 @@ class DataStore:
     db: sqlite3.Connection
     cur: sqlite3.Cursor
     audit: callable
+    header_description: List= None
 
     def set_audit_handler(self, func):
         self.audit = func
@@ -211,11 +212,9 @@ class DataStore:
 
     def exec_query(self, dq: DataQuery):
         res = self._execute_query(dq.format_query())
-        for r in res.fetchall():
-            yield r
+        self.header_description = list(map(lambda x: x[0], self.cur.description))
+        return res.fetchall()
+            
 
     def headers(self):
-        if self.cur and 'description' in self.cur and self.cur.description:
-            return list(map(lambda x: x[0], self.cur.description))
-        else:
-            return None
+        return self.header_description
