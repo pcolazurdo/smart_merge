@@ -111,3 +111,21 @@ We will execute with the following options:
 * Wait {self.SECURITY_TIMEOUT} seconds before continuining for safety reasons
 """
         return config_formatted
+
+class DataConfig():
+    DATASTORE:str
+    UNDER_THRESHOLD_TEXT: str
+    DRY_RUN: bool
+    
+    # init with safe values
+    def __init__(self):
+        self.DATASTORE = 'datastore.db'
+        self.UNDER_THRESHOLD_TEXT = "UNDER THRESHOLD"
+        self.DRY_RUN = True
+
+    def show_config(self):
+        config_formatted = f"""
+        DRY_RUN: {self.DRY_RUN}
+        DataStore: {self.DATASTORE}
+        """
+        return config_formatted
