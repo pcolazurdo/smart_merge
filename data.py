@@ -80,11 +80,23 @@ def filter_df(df_orig, include_list, exclude_list):
     # df = df_orig.copy()
     # for i in include_list:
     #     df = df[df['file_name'].str.contains(i.strip())]
-    
+    df = df_orig
     for i in exclude_list:
         print(f"Excluding: {i}")
         df = df[~df['file_name'].str.contains(i.strip())]
     return df
+
+def print_duplicates(df):
+    last_file_size = None
+    last_file_hash = None
+    for i, r in df.iterrows():
+        # print(i,r)
+        if r['file_size'] != last_file_size or r['file_hash'] != last_file_hash:
+            print(f"{r['file_size']} {r['file_hash']}")
+            last_file_size = r['file_size']
+            last_file_hash = r['file_hash']
+        print(f"\t {r['file_name']} {r['duplicated']}")
+
 
 def run(args):
     task = args.task
@@ -140,15 +152,20 @@ def run(args):
                 if target == 'duplicated':
                     df = pd.DataFrame.from_records(results, columns=ds.headers())
                     df = filter_df(df, include_list, exclude_list)
-                    print(
-                        df
-                    )
+                    df = df.sort_values(['file_hash', 'file_size', 'file_name'])
+                    for i,r in df.iterrows():
+                        print(r['file_hash'])
+                    df['duplicated'] = df.duplicated(subset=['file_hash', 'file_size'], keep='first')
+                    print_duplicates(df)
+                    # print(
+                    #     duplicated
+                    # )
                     return     
             for i in results:
                 print(i)
         except Exception as e:
             print(query)
-            print(e)
+            print(str(e))
     else:
         print("Nothing to show")
         return
@@ -164,6 +181,7 @@ if __name__ == "__main__":
     parser.add_argument("-s", "--session", action= 'append', dest='sessions', default=[])
     # parser.add_argument("-i", "--include", action= 'store', dest='include', default=None) # TODO: Solve how to manage include tasks
     parser.add_argument("-x", "--exclude", action= 'store', dest='exclude', default=None)
+    parser.add_argument("-p", "--prefer", action= 'store', dest='prefer', default=None)
     args = parser.parse_args()
     # print(args.task, args.target, args)
     
