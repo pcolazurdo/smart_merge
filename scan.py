@@ -12,6 +12,11 @@ from time import sleep
 from config import ScanConfig
 from stats import ProcessStats
 from data_store import DataStore, FileRecord, ErrorRecord
+import logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(os.getenv('MERGELOGGING', 'INFO')) 
+
 
 try:
     from alive_progress import alive_bar
@@ -164,7 +169,7 @@ def run(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        prog="merge",
+        prog="scan",
         description="Scan of directories",
         epilog="Use carefully",
     )

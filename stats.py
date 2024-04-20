@@ -1,4 +1,10 @@
 from dataclasses import dataclass
+import os
+import logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(os.getenv('MERGELOGGING', 'INFO')) 
+
 
 
 def sizeof_fmt(num, suffix="B"):

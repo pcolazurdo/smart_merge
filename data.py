@@ -1,10 +1,11 @@
 import argparse
 import os
-import sys
-import traceback
-import uuid
 from pathlib import Path
 from typing import List, Any
+import logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(os.getenv('MERGELOGGING', 'INFO')) 
 
 import pandas as pd
 
@@ -17,14 +18,14 @@ def set_config(new_config: DataConfig):
     global config
     config = new_config
 
-
 def print_or_quiet(*args, **kwargs):
     if config.DRY_RUN:
         print(*args, **kwargs)
 
 def list_sessions(query: DataQuery):
-    query.select_clause = 'DISTINCT session_id'
+    query.select_clause = 'session_id, count(*)'
     query.from_clause = 'files'
+    query.group_clause = 'session_id'
     return query
 
 def list_duplicated(query: DataQuery, session_ids):
@@ -59,7 +60,7 @@ def list_files(query: DataQuery, session_ids):
     query.select_clause = '*'
     query.from_clause = 'files'
     if len(session_ids) > 0:
-        query.where_clause = [f'{query_inner.format_query_in_clause('session_id', session_ids)}']
+        query.where_clause = [f'{query.format_query_in_clause('session_id', session_ids)}']
     else:
         query.where_clause = []
     query.where_clause.append(f'file_hash != "{config.UNDER_THRESHOLD_TEXT}"')
@@ -102,7 +103,7 @@ def show_duplicated(results: List[Any], ds:DataStore, include_list: List= None, 
         last_file_size = None
         last_file_hash = None
         for i, r in df.iterrows():
-            # print(i,r)
+            logger.debug(i,r)
             if r['file_size'] != last_file_size or r['file_hash'] != last_file_hash:
                 if config.DRY_RUN:
                     print(f"{r['file_size']} {r['file_hash']}")

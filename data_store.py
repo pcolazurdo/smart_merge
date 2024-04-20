@@ -1,9 +1,14 @@
 import sqlite3
 from dataclasses import dataclass
 from typing import List
+import logging
+import os
 
 DATABASE_NAME = "data.db"
 QUIET = True
+
+logger = logging.getLogger(__name__)
+logger.setLevel(os.getenv('MERGELOGGING', 'INFO')) 
 
 
 def audit(*args, **kwargs):

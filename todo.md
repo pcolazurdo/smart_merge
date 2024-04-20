@@ -1,7 +1,6 @@
 # Some extra ideas:
 
 * Create a test for the whole project
-* try to avoid using with alive_bar() and move to a function like mechanism
 * add help info on the arguments
 * Create the option to calculate the size of the job before running 
 * multi threaded
@@ -22,3 +21,4 @@
 
 # Done:
 * move the DO_* to a config class
+* try to avoid using with alive_bar() and move to a function like mechanism

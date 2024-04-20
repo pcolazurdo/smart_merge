@@ -7,10 +7,16 @@ from filecmp import cmp
 from functools import cache, wraps
 from pathlib import Path
 from shutil import copy2
-from time import sleep
+from time import sleep, time
+
 
 from config import MergeConfig
 from stats import ProcessStats
+import logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(os.getenv('MERGELOGGING', 'INFO')) 
+
 
 try:
     from alive_progress import alive_bar
@@ -180,8 +186,7 @@ def merge_file(source_file, destination_file):
     assert "Path" in str(type(destination_file))
     source_size = calc_size(source_file)
     stats.processed(source_size)
-    if config.DO_IGNORE:
-        if config.IGNORE_PATH in source_file:
+    if config.DO_IGNORE and config.IGNORE_PATH in str(source_file):
             ignore_file(source_file)
             stats.ignored(source_size)
     else:
@@ -311,4 +316,7 @@ if __name__ == "__main__":
     config.DO_IGNORE = True
     config.IGNORE_PATH = "$RECYCLE.BIN"
 
+    begin = time()
     run(args)
+    end = time()
+    print (f"Elapsed time: {end - begin}")

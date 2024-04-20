@@ -2,6 +2,11 @@ import os
 from dataclasses import dataclass
 import hashlib
 from datetime import datetime
+import logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(os.getenv('MERGELOGGING', 'INFO')) 
+
 
 
 class MergeConfig():
