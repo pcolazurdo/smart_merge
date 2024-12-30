@@ -12,4 +12,3 @@ def __alive_bar():
 
 def alive_bar(*args, **kwargs):    
     return __alive_bar()
-

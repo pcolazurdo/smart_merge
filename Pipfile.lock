@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "6ca3710e3e83b320be34b1ecfb35e4c42cc3b62a5ca6d6a9da4f241d23694872"
+            "sha256": "06c54729485c895d39194dbc3014ef7855b6caf803b0ded169f6a6034234a0a5"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -150,6 +150,13 @@
         }
     },
     "develop": {
+        "flameprof": {
+            "hashes": [
+                "sha256:dbc86d4190cbbba624f1e0a40f44d9db96138e27534d83c8ef42d420857875a3"
+            ],
+            "index": "pypi",
+            "version": "==0.4"
+        },
         "iniconfig": {
             "hashes": [
                 "sha256:2d91e135bf72d31a410b17c16da610a82cb55f6b0477d1a902134b24a455b8b3",

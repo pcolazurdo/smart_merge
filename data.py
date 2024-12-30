@@ -81,7 +81,14 @@ def count_files(query: DataQuery, session_ids):
 def delete_non_duplicated(df: pd.DataFrame):
     assert type(df) == pd.DataFrame
     non_duplicated_records = df.groupby(['file_size', 'file_hash'])['file_name'].filter(lambda x: len(x) == 1)
-    return non_duplicated_records
+    # print(result_df.count(df))
+    result_df = pd.merge(left=df, right=non_duplicated_records, how='outer', indicator=True) \
+        .query('_merge=="left_only"') 
+        # \
+        # .drop('_merge', axis=1)
+    # print(result_df.count())
+    print(result_df.count(), df.count())
+    return result_df
 
 # it filters all records which the file_name contains some of the texts in the exclusion list
 def filter_df(df_orig, include_list, exclude_list):
@@ -120,9 +127,13 @@ def show_duplicated(results: List[Any], ds:DataStore, include_list: List= None, 
     df = pd.DataFrame.from_records(results, columns=ds.headers())
     df = filter_df(df, include_list, exclude_list)
     df = df.sort_values(['file_hash', 'file_size', 'file_name'])
-    df['duplicated'] = df.duplicated(subset=['file_hash', 'file_size'], keep='first')
-    print_duplicates(df)
-    delete_non_duplicated(df)
+    non_duplicated_df = delete_non_duplicated(df)
+    non_duplicated_df['duplicated'] = non_duplicated_df.duplicated(subset=['file_hash', 'file_size'], keep='first')
+    
+    total_size = non_duplicated_df.groupby('duplicated').sum('file_size')
+    print(total_size)
+    # print_duplicates(df)
+    
 
 def run(args):
     task = args.task

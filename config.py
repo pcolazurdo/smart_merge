@@ -40,6 +40,7 @@ class MergeConfig():
         self.SECURITY_TIMEOUT = 60
         self.DO_SHALLOW = False
         self.DO_IGNORE = False
+        
         self.IGNORE_PATH = ""
         
         self.LOG_FILE_NOT_FOUND_ERRORS = False
@@ -84,6 +85,7 @@ class ScanConfig():
     HASH_FUNCTION: callable
     TIMESTAMP: str
     UNDER_THRESHOLD_TEXT: str
+    PHYSICAL_DELETE: bool
     
     # init with safe values
     def __init__(self):
@@ -101,12 +103,14 @@ class ScanConfig():
         self.TIMESTAMP = datetime.now().isoformat(timespec='microseconds')
         self.SESSION_ID = ''
         self.UNDER_THRESHOLD_TEXT = "UNDER THRESHOLD"
+        self.PHYSICAL_DELETE = False
 
     def show_config(self):
         config_formatted = f"""
 We will execute with the following options:
 * Run quietly: {self.DO_QUIET}
 * Ignore ._* files (special MAC files): {self.IGNORE_DOT_UNDERSCORE_FILES}
+* Delete files physically (false means just report): {self.PHYSICAL_DELETE}
 * Log Files not found: {self.LOG_FILE_NOT_FOUND_ERRORS}
   * Continue even with unknown file handling exceptions: {self.DO_SUPRESS_UNKNOWN_EXCEPTIONS}"
   * Log File: {self.AUDIT_LOG_FILE}
